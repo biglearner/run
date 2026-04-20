@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>校園通上學規劃器 v1.2.0</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
+        
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+        }
+
+        /* 路徑動畫 */
+        @keyframes dash {
+            to { stroke-dashoffset: -1000; }
+        }
+
+        @keyframes moveAlongPath {
+            from { offset-distance: 0%; }
+            to { offset-distance: 100%; }
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+
+        @keyframes slideIn {
+            from { transform: translate(-50%, -100%); opacity: 0; }
+            to { transform: translate(-50%, 0); opacity: 1; }
+        }
+
+        .animate-dash {
+            animation: dash 30s linear infinite;
+        }
+
+        .animate-bounce-custom {
+            animation: bounce 2s ease-in-out infinite;
+        }
+
+        .path-moving-emoji {
+            offset-path: path('M 200 600 L 400 580 L 420 400 L 600 350');
+            animation: moveAlongPath 4s cubic-bezier(0.45, 0.05, 0.55, 0.95) forwards;
+        }
+
+        /* 隱藏捲軸但保留功能 */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased overflow-hidden">
+
+    <div class="flex flex-col h-screen">
+        <!-- 頂部導航欄 -->
+        <header class="sticky top-0 z-[1000] w-full bg-white/80 backdrop-blur-md border-b border-slate-200 px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <div class="bg-emerald-500 p-2 rounded-xl text-white shadow-lg shadow-emerald-100">
+                    <i data-lucide="navigation" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight text-emerald-900">校園通</h1>
+                    <p class="text-xs text-emerald-600 font-medium">版本 1.2.0 | HTML 動態版</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-3">
+                <button onclick="showAlert()" class="p-2 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 rounded-full transition-all relative">
+                    <i data-lucide="bell" class="w-5 h-5"></i>
+                    <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white"></span>
+                </button>
+                <button onclick="toggleMenu()" class="md:hidden p-2 text-slate-600">
+                    <i data-lucide="menu" id="menuIcon"></i>
+                </button>
+            </div>
+        </header>
+
+        <main class="flex-1 flex flex-col md:flex-row overflow-hidden relative">
+            <!-- 左側控制面板 -->
+            <aside id="sidebar" class="fixed md:relative inset-0 md:inset-auto z-[999] md:z-10 w-full md:w-80 lg:w-96 bg-white border-r border-slate-200 transition-transform duration-300 transform -translate-x-full md:translate-x-0 flex flex-col shadow-xl md:shadow-none">
+                <div class="p-6 space-y-8 overflow-y-auto no-scrollbar flex-1">
+                    <!-- 路程設定 -->
+                    <section class="space-y-4">
+                        <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider">路程設定</h2>
+                        <div class="space-y-3">
+                            <div class="relative">
+                                <label class="text-xs font-medium text-slate-500 mb-1 block">起點 (家)</label>
+                                <div class="flex items-center gap-2 bg-slate-50 p-3 rounded-lg border border-slate-100 focus-within:border-emerald-300 transition-colors">
+                                    <i data-lucide="map-pin" class="w-4 h-4 text-emerald-500"></i>
+                                    <input class="bg-transparent w-full outline-none text-sm" value="台北市信義路五段..." />
+                                </div>
+                            </div>
+                            <div class="relative">
+                                <label class="text-xs font-medium text-slate-500 mb-1 block">終點 (學校)</label>
+                                <div class="flex items-center gap-2 bg-slate-50 p-3 rounded-lg border border-slate-100 focus-within:border-blue-300 transition-colors">
+                                    <i data-lucide="shield-check" class="w-4 h-4 text-blue-500"></i>
+                                    <input class="bg-transparent w-full outline-none text-sm" value="台北市立某某高級中學" />
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- 交通模式 -->
+                    <section class="space-y-4">
+                        <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider">交通模式</h2>
+                        <div class="grid grid-cols-3 gap-2" id="transportGrid">
+                            <button onclick="setTransport('walk')" id="btn-walk" class="transport-btn flex flex-col items-center gap-2 p-3 rounded-xl transition-all border bg-green-100 text-green-600 border-current ring-4 ring-current ring-opacity-10 scale-105 shadow-sm">
+                                <span class="text-xl">🚶‍♂️</span>
+                                <span class="text-xs font-bold">步行</span>
+                            </button>
+                            <button onclick="setTransport('bike')" id="btn-bike" class="transport-btn flex flex-col items-center gap-2 p-3 rounded-xl transition-all border bg-white border-slate-100 text-slate-400 hover:border-slate-200">
+                                <span class="text-xl">🚲</span>
+                                <span class="text-xs font-bold">單車</span>
+                            </button>
+                            <button onclick="setTransport('transit')" id="btn-transit" class="transport-btn flex flex-col items-center gap-2 p-3 rounded-xl transition-all border bg-white border-slate-100 text-slate-400 hover:border-slate-200">
+                                <span class="text-xl">🚌</span>
+                                <span class="text-xs font-bold">大眾運輸</span>
+                            </button>
+                        </div>
+                    </section>
+
+                    <!-- 狀態卡片 -->
+                    <section class="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl p-5 text-white shadow-lg shadow-emerald-100 relative overflow-hidden">
+                        <div class="absolute top-[-10%] right-[-10%] opacity-20 transform rotate-12">
+                            <i data-lucide="navigation" class="w-24 h-24"></i>
+                        </div>
+                        <div class="flex items-start justify-between mb-4 relative z-10">
+                            <div>
+                                <h3 class="font-bold text-emerald-50">預計通勤狀態</h3>
+                                <p class="text-xs text-emerald-100 opacity-90">今日路況：優良</p>
+                            </div>
+                            <i data-lucide="sun" class="w-6 h-6 text-amber-300 animate-pulse"></i>
+                        </div>
+                        <div class="flex items-center gap-4 relative z-10">
+                            <div class="flex items-center gap-1">
+                                <i data-lucide="clock" class="w-4 h-4 text-emerald-200"></i>
+                                <span id="etaValue" class="text-3xl font-black">15</span>
+                                <span class="text-xs font-bold self-end mb-1">分鐘</span>
+                            </div>
+                            <div class="h-8 w-[1px] bg-white/20"></div>
+                            <div class="text-xs">
+                                <p class="font-bold text-emerald-50">建議出發</p>
+                                <p class="text-emerald-100">07:25 AM</p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- 安全提示 -->
+                    <div class="bg-amber-50 border border-amber-100 p-4 rounded-xl flex gap-3 shadow-sm">
+                        <i data-lucide="info" class="w-5 h-5 text-amber-500 shrink-0"></i>
+                        <p class="text-xs text-amber-800 leading-relaxed font-medium">
+                            提醒：校門口正在進行人行道修繕，步行請靠內側。
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="p-6 border-t border-slate-100 bg-slate-50/50">
+                    <button class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-emerald-100 transition-all active:scale-95 flex items-center justify-center gap-2">
+                        <i data-lucide="navigation" class="w-4 h-4"></i>
+                        開始導航
+                    </button>
+                </div>
+            </aside>
+
+            <!-- 右側地圖區域 -->
+            <section class="flex-1 bg-[#f0f4f8] relative overflow-hidden">
+                <!-- 地圖背景網格 -->
+                <div class="absolute inset-0" style="background-image: radial-gradient(#cbd5e1 1px, transparent 1px); background-size: 32px 32px;">
+                    <!-- 模擬道路 -->
+                    <svg class="absolute inset-0 w-full h-full opacity-10">
+                       <path d="M0,450 H1600" stroke="#64748b" stroke-width="60" fill="none" />
+                       <path d="M400,0 V1000" stroke="#64748b" stroke-width="40" fill="none" />
+                    </svg>
+                    
+                    <!-- 動態路徑 -->
+                    <div class="absolute inset-0 flex items-center justify-center">
+                        <svg class="w-full h-full drop-shadow-sm" viewBox="0 0 800 800">
+                            <!-- 背景路徑 -->
+                            <path d="M 200 600 L 400 580 L 420 400 L 600 350" fill="none" stroke="#e2e8f0" stroke-width="8" stroke-linecap="round" />
+                            <!-- 動態虛線 -->
+                            <path id="flowPath" d="M 200 600 L 400 580 L 420 400 L 600 350" fill="none" stroke="#10b981" stroke-width="4" stroke-linecap="round" stroke-dasharray="10, 15" class="animate-dash opacity-60" />
+
+                            <!-- 移動交通工具 -->
+                            <g class="animate-bounce-custom">
+                                <text id="movingEmoji" font-size="32" class="path-moving-emoji">🚶‍♂️</text>
+                            </g>
+                        </svg>
+                        
+                        <!-- 起點標記 -->
+                        <div class="absolute" style="left: 200px; top: 600px;">
+                            <div class="relative -translate-x-1/2 -translate-y-full flex flex-col items-center">
+                                <div class="bg-white p-1.5 rounded-full shadow-md border-2 border-emerald-500 animate-pulse">
+                                    <i data-lucide="map-pin" class="w-5 h-5 text-emerald-500"></i>
+                                </div>
+                                <div class="mt-2 bg-emerald-500 text-white text-[10px] px-2 py-0.5 rounded-md whitespace-nowrap font-bold shadow-sm">我的家</div>
+                            </div>
+                        </div>
+
+                        <!-- 終點標記 -->
+                        <div class="absolute" style="left: 600px; top: 350px;">
+                            <div class="relative -translate-x-1/2 -translate-y-full flex flex-col items-center">
+                                <div class="bg-white p-1.5 rounded-full shadow-md border-2 border-blue-500">
+                                    <i data-lucide="shield-check" class="w-5 h-5 text-blue-500"></i>
+                                </div>
+                                <div class="mt-2 bg-blue-500 text-white text-[10px] px-2 py-0.5 rounded-md whitespace-nowrap font-bold shadow-sm">快樂小學</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 右下角工具 -->
+                <div class="absolute bottom-6 right-6 flex flex-col gap-3">
+                    <button onclick="replayAnimation()" class="bg-white p-3 rounded-full shadow-xl hover:bg-slate-50 transition-all border border-slate-100 text-emerald-600 active:rotate-180 duration-500" title="重播動畫">
+                        <i data-lucide="rotate-ccw" class="w-5 h-5"></i>
+                    </button>
+                    <button class="bg-white p-3 rounded-full shadow-xl hover:bg-slate-50 transition-all border border-slate-100 text-slate-600">
+                        <i data-lucide="navigation" class="w-5 h-5"></i>
+                    </button>
+                </div>
+
+                <!-- 通知彈窗 -->
+                <div id="notification" class="hidden absolute top-6 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur px-6 py-3 rounded-full shadow-2xl border border-emerald-100 flex items-center gap-3 z-[2000]" style="animation: slideIn 0.3s ease-out">
+                    <div class="bg-emerald-500 p-1.5 rounded-full">
+                        <i data-lucide="bell" class="w-4 h-4 text-white"></i>
+                    </div>
+                    <p class="text-sm font-bold text-emerald-900 tracking-wide">您的專屬路徑已規劃完成！</p>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        // 初始化 Lucide 圖標
+        lucide.createIcons();
+
+        // 交通模式配置
+        const modes = {
+            walk: { emoji: '🚶‍♂️', eta: 15, stroke: '#10b981', bg: 'bg-green-100', color: 'text-green-600' },
+            bike: { emoji: '🚲', eta: 8, stroke: '#3b82f6', bg: 'bg-blue-100', color: 'text-blue-600' },
+            transit: { emoji: '🚌', eta: 5, stroke: '#f97316', bg: 'bg-orange-100', color: 'text-orange-600' }
+        };
+
+        let currentTransport = 'walk';
+
+        // 切換交通工具
+        function setTransport(modeId) {
+            currentTransport = modeId;
+            const mode = modes[modeId];
+
+            // 更新按鈕樣式
+            document.querySelectorAll('.transport-btn').forEach(btn => {
+                btn.className = "transport-btn flex flex-col items-center gap-2 p-3 rounded-xl transition-all border bg-white border-slate-100 text-slate-400 hover:border-slate-200";
+            });
+            const activeBtn = document.getElementById(`btn-${modeId}`);
+            activeBtn.className = `transport-btn flex flex-col items-center gap-2 p-3 rounded-xl transition-all border ${mode.bg} ${mode.color} border-current ring-4 ring-current ring-opacity-10 scale-105 shadow-sm`;
+
+            // 更新數據
+            document.getElementById('etaValue').innerText = mode.eta;
+            document.getElementById('flowPath').setAttribute('stroke', mode.stroke);
+            
+            // 更新並重啟動畫
+            const emojiEl = document.getElementById('movingEmoji');
+            emojiEl.innerText = mode.emoji;
+            replayAnimation();
+
+            // 手機版自動縮回選單
+            if (window.innerWidth < 768) toggleMenu(false);
+        }
+
+        // 重播動畫
+        function replayAnimation() {
+            const el = document.getElementById('movingEmoji');
+            el.style.animation = 'none';
+            el.offsetHeight; /* 觸發重流 (Reflow) */
+            el.style.animation = 'moveAlongPath 4s cubic-bezier(0.45, 0.05, 0.55, 0.95) forwards';
+        }
+
+        // 側邊欄開關
+        let isMenuOpen = false;
+        function toggleMenu(force) {
+            isMenuOpen = force !== undefined ? force : !isMenuOpen;
+            const sidebar = document.getElementById('sidebar');
+            const menuIcon = document.getElementById('menuIcon');
+            
+            if (isMenuOpen) {
+                sidebar.classList.remove('-translate-x-full');
+                menuIcon.setAttribute('data-lucide', 'x');
+            } else {
+                sidebar.classList.add('-translate-x-full');
+                menuIcon.setAttribute('data-lucide', 'menu');
+            }
+            lucide.createIcons();
+        }
+
+        // 顯示通知
+        function showAlert() {
+            const note = document.getElementById('notification');
+            note.classList.remove('hidden');
+            setTimeout(() => {
+                note.classList.add('hidden');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
